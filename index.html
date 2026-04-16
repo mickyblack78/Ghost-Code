@@ -26,6 +26,7 @@
         <option value="mp3">.mp3 (Base64/URL)</option>
         <option value="mp4">.mp4 (Base64/URL)</option>
     </select>
+    <button onclick="clearPad()" style="background-color: red; color: white; float: right; margin: 10px; border-radius: 5px; cursor: pointer;">CLEAR PAGE</button>
     <button class="btn-run" onclick="runCode()">RUN</button>
     <button class="btn-save" onclick="saveFile()">SAVE</button>
     <button onclick="toggleView()" id="viewToggle">VIEW PREVIEW</button>
@@ -35,19 +36,18 @@
     <textarea id="code-input" placeholder="Paste code or media links here..."></textarea>
     <iframe id="viewer" class="hidden"></iframe>
 </div>
-
 <script>
-    const input = document.getElementById('code-input');
+const input = document.getElementById('code-input');
     const viewer = document.getElementById('viewer');
     const ext = document.getElementById('extension');
+    const RECENT_KEY = 'ghostpad_recents';
 
-    function runCode() {
+    // Merged Run and Preview Function
+    function runAndPreview() {
         const type = ext.value;
         const val = input.value;
         
-        viewer.classList.remove('hidden');
-        input.classList.add('hidden');
-
+        // Process the content
         if (type === 'html') {
             const blob = new Blob([val], { type: 'text/html' });
             viewer.src = URL.createObjectURL(blob);
@@ -55,33 +55,56 @@
             const blob = new Blob([val], { type: 'text/plain' });
             viewer.src = URL.createObjectURL(blob);
         } else if (type === 'mp3') {
-            const html = `<html><body style="display:grid;place-items:center;height:100vh;background:#000;"><audio controls src="${val}"></audio></body></html>`;
-            viewer.srcdoc = html;
+            viewer.srcdoc = `<html><body style="display:grid;place-items:center;height:100vh;background:#000;"><audio controls src="${val}"></audio></body></html>`;
         } else if (type === 'mp4') {
-            const html = `<html><body style="display:grid;place-items:center;height:100vh;background:#000;"><video controls style="max-width:100%;" src="${val}"></video></body></html>`;
-            viewer.srcdoc = html;
+            viewer.srcdoc = `<html><body style="display:grid;place-items:center;height:100vh;background:#000;"><video controls style="max-width:100%;" src="${val}"></video></body></html>`;
         }
+
+        // Automatically Flip View
+        input.classList.add('hidden');
+        viewer.classList.remove('hidden');
     }
 
-    function toggleView() {
-        if (input.classList.contains('hidden')) {
-            input.classList.remove('hidden');
-            viewer.classList.add('hidden');
-            document.getElementById('viewToggle').innerText = "VIEW PREVIEW";
-        } else {
-            input.classList.add('hidden');
-            viewer.classList.remove('hidden');
-            document.getElementById('viewToggle').innerText = "VIEW EDITOR";
-        }
-    }
-
+    // Save with Recents Logic
     function saveFile() {
         const text = input.value;
+        const filename = `ghost_${Date.now()}.${ext.value}`;
+        
+        // Standard Download
         const blob = new Blob([text], { type: "text/plain" });
         const anchor = document.createElement("a");
-        anchor.download = `ghost_file.${ext.value}`;
+        anchor.download = filename;
         anchor.href = window.URL.createObjectURL(blob);
         anchor.click();
+
+        // Update Recents List (Top 5)
+        let recents = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+        recents.unshift({ name: filename, content: text });
+        if (recents.length > 5) recents.pop();
+        localStorage.setItem(RECENT_KEY, JSON.stringify(recents));
+        updateRecentMenu();
+    }
+
+    // Load from Recents
+    function loadRecent(index) {
+        let recents = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
+        if (recents[index]) {
+            input.value = recents[index].content;
+        }
+    }
+
+    // Clear Function
+    function clearPad() {
+        if (confirm("Are you sure you want to wipe the page?")) {
+            input.value = '';
+            viewer.srcdoc = '';
+            viewer.src = 'about:blank';
+        }
+    }
+
+    // Initialize Menu (Placeholder for UI update)
+    function updateRecentMenu() {
+        console.log("Recents updated in storage");
     }
 </script>
 

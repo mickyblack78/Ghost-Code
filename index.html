@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ghost View Pad</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; margin: 0; background: #1a1a1a; color: #eee; }
+        #toolbar { padding: 10px; display: flex; gap: 10px; background: #2d2d2d; align-items: center; }
+        #editor-container { flex: 1; display: flex; flex-direction: column; }
+        textarea { flex: 1; background: #252525; color: #fff; border: none; padding: 15px; font-family: monospace; resize: none; outline: none; }
+        #viewer { flex: 1; background: #fff; border: none; }
+        button { cursor: pointer; padding: 8px 15px; border: none; border-radius: 4px; font-weight: bold; }
+        .btn-run { background: #4caf50; color: white; }
+        .btn-save { background: #2196f3; color: white; }
+        select { padding: 7px; border-radius: 4px; background: #444; color: white; border: 1px solid #555; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="toolbar">
+    <select id="extension">
+        <option value="html">.html</option>
+        <option value="txt">.txt</option>
+        <option value="mp3">.mp3 (Base64/URL)</option>
+        <option value="mp4">.mp4 (Base64/URL)</option>
+    </select>
+    <button class="btn-run" onclick="runCode()">RUN</button>
+    <button class="btn-save" onclick="saveFile()">SAVE</button>
+    <button onclick="toggleView()" id="viewToggle">VIEW PREVIEW</button>
+</div>
+
+<div id="editor-container">
+    <textarea id="code-input" placeholder="Paste code or media links here..."></textarea>
+    <iframe id="viewer" class="hidden"></iframe>
+</div>
+
+<script>
+    const input = document.getElementById('code-input');
+    const viewer = document.getElementById('viewer');
+    const ext = document.getElementById('extension');
+
+    function runCode() {
+        const type = ext.value;
+        const val = input.value;
+        
+        viewer.classList.remove('hidden');
+        input.classList.add('hidden');
+
+        if (type === 'html') {
+            const blob = new Blob([val], { type: 'text/html' });
+            viewer.src = URL.createObjectURL(blob);
+        } else if (type === 'txt') {
+            const blob = new Blob([val], { type: 'text/plain' });
+            viewer.src = URL.createObjectURL(blob);
+        } else if (type === 'mp3') {
+            const html = `<html><body style="display:grid;place-items:center;height:100vh;background:#000;"><audio controls src="${val}"></audio></body></html>`;
+            viewer.srcdoc = html;
+        } else if (type === 'mp4') {
+            const html = `<html><body style="display:grid;place-items:center;height:100vh;background:#000;"><video controls style="max-width:100%;" src="${val}"></video></body></html>`;
+            viewer.srcdoc = html;
+        }
+    }
+
+    function toggleView() {
+        if (input.classList.contains('hidden')) {
+            input.classList.remove('hidden');
+            viewer.classList.add('hidden');
+            document.getElementById('viewToggle').innerText = "VIEW PREVIEW";
+        } else {
+            input.classList.add('hidden');
+            viewer.classList.remove('hidden');
+            document.getElementById('viewToggle').innerText = "VIEW EDITOR";
+        }
+    }
+
+    function saveFile() {
+        const text = input.value;
+        const blob = new Blob([text], { type: "text/plain" });
+        const anchor = document.createElement("a");
+        anchor.download = `ghost_file.${ext.value}`;
+        anchor.href = window.URL.createObjectURL(blob);
+        anchor.click();
+    }
+</script>
+
+</body>
+</html>

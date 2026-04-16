@@ -180,6 +180,12 @@ function setTranslate(xPos, yPos, el) {
     }
 
     window.onload = renderRecents;
+    // ... all your existing code ...
+
+// Just add this at the very bottom of the same script:
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+}
 </script>
 
 </body>

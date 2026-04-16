@@ -27,7 +27,17 @@
         <option value="mp4">.mp4 (Base64/URL)</option>
     </select>
     <button onclick="clearPad()" style="background-color: red; color: white; float: right; margin: 10px; border-radius: 5px; cursor: pointer;">CLEAR PAGE</button>
-    <button class="btn-run" onclick="runCode()">RUN</button>
+    <button><div style="display:inline-block; position:relative;">
+    <button onclick="document.getElementById('recent-list').classList.toggle('show')" style="cursor:pointer;">LOAD</button>
+    <div id="recent-list" style="display:none; position:absolute; background:#f9f9f9; min-width:160px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2); z-index:1;">
+        <input type="file" id="file-selector" style="display:none;" onchange="importFile(event)">
+        <a href="#" onclick="document.getElementById('file-selector').click()" style="display:block; padding:10px; text-decoration:none; color:black;">Import File</a>
+        <hr>
+        <div id="recent-items"></div>
+    </div>
+</div>
+
+<button onclick="runAndPreview()">RUN & PREVIEW</button>
     <button class="btn-save" onclick="saveFile()">SAVE</button>
     <button onclick="toggleView()" id="viewToggle">VIEW PREVIEW</button>
 </div>
@@ -37,7 +47,8 @@
     <iframe id="viewer" class="hidden"></iframe>
 </div>
 <script>
-const input = document.getElementById('code-input');
+    
+    const input = document.getElementById('code-input');
     const viewer = document.getElementById('viewer');
     const ext = document.getElementById('extension');
     const RECENT_KEY = 'ghostpad_recents';

@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ghoster</title>
     <style>
+        .controls {
+    position: fixed;
+    cursor: move; /* Shows the 'grab' icon */
+    touch-action: none; /* Crucial for mobile: stops the screen from scrolling while you drag */
+    user-select: none; /* Stops you from accidentally highlighting text while dragging */
+        }
         body { margin: 0; font-family: sans-serif; background: #1e1e1e; color: white; overflow: hidden; }
         #editor { width: 100vw; height: 100vh; background: #1e1e1e; color: #d4d4d4; border: none; padding: 10px; font-family: monospace; font-size: 14px; resize: none; outline: none; }
         
@@ -48,6 +54,62 @@
 </div>
 
 <script>
+    const dragContainer = document.querySelector(".controls");
+let active = false;
+let currentX;
+let currentY;
+let initialX;
+let initialY;
+let xOffset = 0;
+let yOffset = 0;
+
+// Listen for touch (mobile) and mouse (desktop)
+dragContainer.addEventListener("touchstart", dragStart, false);
+dragContainer.addEventListener("touchend", dragEnd, false);
+dragContainer.addEventListener("touchmove", drag, false);
+
+dragContainer.addEventListener("mousedown", dragStart, false);
+dragContainer.addEventListener("mouseup", dragEnd, false);
+dragContainer.addEventListener("mousemove", drag, false);
+
+function dragStart(e) {
+    if (e.type === "touchstart") {
+        initialX = e.touches[0].clientX - xOffset;
+        initialY = e.touches[0].clientY - yOffset;
+    } else {
+        initialX = e.clientX - xOffset;
+        initialY = e.clientY - yOffset;
+    }
+    if (e.target === dragContainer || dragContainer.contains(e.target)) {
+        active = true;
+    }
+}
+
+function dragEnd() {
+    initialX = currentX;
+    initialY = currentY;
+    active = false;
+}
+
+function drag(e) {
+    if (active) {
+        e.preventDefault();
+        if (e.type === "touchmove") {
+            currentX = e.touches[0].clientX - initialX;
+            currentY = e.touches[0].clientY - initialY;
+        } else {
+            currentX = e.clientX - initialX;
+            currentY = e.clientY - initialY;
+        }
+        xOffset = currentX;
+        yOffset = currentY;
+        setTranslate(currentX, currentY, dragContainer);
+    }
+}
+
+function setTranslate(xPos, yPos, el) {
+    el.style.transform = "translate3d(" + xPos + "px, " + yPos + "px, 0)";
+}
     const editor = document.getElementById('editor');
     const previewContainer = document.getElementById('preview-container');
     const previewFrame = document.getElementById('preview-frame');

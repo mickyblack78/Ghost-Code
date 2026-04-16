@@ -3,120 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ghost View Pad</title>
+    <title>ghoster</title>
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; margin: 0; background: #1a1a1a; color: #eee; }
-        #toolbar { padding: 10px; display: flex; gap: 10px; background: #2d2d2d; align-items: center; }
-        #editor-container { flex: 1; display: flex; flex-direction: column; }
-        textarea { flex: 1; background: #252525; color: #fff; border: none; padding: 15px; font-family: monospace; resize: none; outline: none; }
-        #viewer { flex: 1; background: #fff; border: none; }
-        button { cursor: pointer; padding: 8px 15px; border: none; border-radius: 4px; font-weight: bold; }
-        .btn-run { background: #4caf50; color: white; }
-        .btn-save { background: #2196f3; color: white; }
-        select { padding: 7px; border-radius: 4px; background: #444; color: white; border: 1px solid #555; }
-        .hidden { display: none; }
+        body { margin: 0; font-family: sans-serif; background: #1e1e1e; color: #fff; overflow: hidden; }
+        #editor { width: 100vw; height: 100vh; background: #1e1e1e; color: #d4d4d4; border: none; padding: 10px; font-family: monospace; font-size: 14px; resize: none; outline: none; }
+        
+        /* The UI Layer */
+        .controls { position: fixed; top: 10px; left: 10px; display: flex; gap: 5px; z-index: 100; }
+        button { background: #333; color: #fff; border: 1px solid #555; padding: 4px 8px; cursor: pointer; font-size: 12px; }
+        button:hover { background: #444; }
+
+        /* Preview Overlay */
+        #preview-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; display: none; z-index: 1000; }
+        iframe { width: 100%; height: 100%; border: none; }
+        
+        /* Tiny Top-Corner Refresh/Close */
+        #close-btn { position: absolute; top: 5px; right: 5px; background: #ff4444; border: none; color: white; padding: 2px 6px; cursor: pointer; z-index: 1001; font-size: 10px; }
+        
+        /* Load Menu */
+        #load-menu { position: absolute; top: 35px; left: 0; background: #252526; border: 1px solid #444; display: none; flex-direction: column; min-width: 120px; }
+        #load-menu button { border: none; text-align: left; width: 100%; padding: 8px; }
+        .show { display: flex !important; }
     </style>
 </head>
 <body>
 
-<div id="toolbar">
-    <select id="extension">
-        <option value="html">.html</option>
-        <option value="txt">.txt</option>
-        <option value="mp3">.mp3 (Base64/URL)</option>
-        <option value="mp4">.mp4 (Base64/URL)</option>
-    </select>
-    <button onclick="clearPad()" style="background-color: red; color: white; float: right; margin: 10px; border-radius: 5px; cursor: pointer;">CLEAR PAGE</button>
-    <button><div style="display:inline-block; position:relative;">
-    <button onclick="document.getElementById('recent-list').classList.toggle('show')" style="cursor:pointer;">LOAD</button>
-    <div id="recent-list" style="display:none; position:absolute; background:#f9f9f9; min-width:160px; box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2); z-index:1;">
-        <input type="file" id="file-selector" style="display:none;" onchange="importFile(event)">
-        <a href="#" onclick="document.getElementById('file-selector').click()" style="display:block; padding:10px; text-decoration:none; color:black;">Import File</a>
-        <hr>
-        <div id="recent-items"></div>
+<div class="controls">
+    <button onclick="toggleLoad()">LOAD</button>
+    <button onclick="runAndPreview()">RUN</button>
+    <button onclick="saveFile()">SAVE</button>
+    
+    <div id="load-menu">
+        <button onclick="document.getElementById('file-input').click()">Import File</button>
+        <div id="recent-list"></div>
     </div>
 </div>
 
-<button onclick="runAndPreview()">RUN & PREVIEW</button>
-    <button class="btn-save" onclick="saveFile()">SAVE</button>
-    <button onclick="toggleView()" id="viewToggle">VIEW PREVIEW</button>
+<input type="file" id="file-input" style="display:none" onchange="importFile(event)">
+<textarea id="editor" placeholder="Write HTML/JS here..."></textarea>
+
+<div id="preview-container">
+    <button id="close-btn" onclick="closePreview()">X</button>
+    <iframe id="preview-frame"></iframe>
 </div>
 
-<div id="editor-container">
-    <textarea id="code-input" placeholder="Paste code or media links here..."></textarea>
-    <iframe id="viewer" class="hidden"></iframe>
-</div>
 <script>
-    
-    const input = document.getElementById('code-input');
-    const viewer = document.getElementById('viewer');
-    const ext = document.getElementById('extension');
-    const RECENT_KEY = 'ghostpad_recents';
+    const editor = document.getElementById('editor');
+    const previewContainer = document.getElementById('preview-container');
+    const previewFrame = document.getElementById('preview-frame');
+    const loadMenu = document.getElementById('load-menu');
 
-    // Merged Run and Preview Function
+    // RUN & PREVIEW TOGGLE
     function runAndPreview() {
-        const type = ext.value;
-        const val = input.value;
-        
-        // Process the content
-        if (type === 'html') {
-            const blob = new Blob([val], { type: 'text/html' });
-            viewer.src = URL.createObjectURL(blob);
-        } else if (type === 'txt') {
-            const blob = new Blob([val], { type: 'text/plain' });
-            viewer.src = URL.createObjectURL(blob);
-        } else if (type === 'mp3') {
-            viewer.srcdoc = `<html><body style="display:grid;place-items:center;height:100vh;background:#000;"><audio controls src="${val}"></audio></body></html>`;
-        } else if (type === 'mp4') {
-            viewer.srcdoc = `<html><body style="display:grid;place-items:center;height:100vh;background:#000;"><video controls style="max-width:100%;" src="${val}"></video></body></html>`;
-        }
-
-        // Automatically Flip View
-        input.classList.add('hidden');
-        viewer.classList.remove('hidden');
+        const code = editor.value;
+        previewContainer.style.display = 'block';
+        const doc = previewFrame.contentDocument || previewFrame.contentWindow.document;
+        doc.open();
+        doc.write(code);
+        doc.close();
     }
 
-    // Save with Recents Logic
+    function closePreview() {
+        previewContainer.style.display = 'none';
+        previewFrame.src = "about:blank";
+    }
+
+    // LOAD SYSTEM
+    function toggleLoad() {
+        loadMenu.classList.toggle('show');
+    }
+
+    function importFile(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            editor.value = e.target.result;
+            addToRecents(file.name, e.target.result);
+        };
+        reader.readAsText(file);
+        loadMenu.classList.remove('show');
+    }
+
+    // SAVE SYSTEM
     function saveFile() {
-        const text = input.value;
-        const filename = `ghost_${Date.now()}.${ext.value}`;
-        
-        // Standard Download
-        const blob = new Blob([text], { type: "text/plain" });
-        const anchor = document.createElement("a");
-        anchor.download = filename;
-        anchor.href = window.URL.createObjectURL(blob);
-        anchor.click();
+        const blob = new Blob([editor.value], { type: 'text/html' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'project.html';
+        a.click();
+    }
 
-        // Update Recents List (Top 5)
-        let recents = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
-        recents.unshift({ name: filename, content: text });
+    // RECENT FILES (Local Storage)
+    function addToRecents(name, content) {
+        let recents = JSON.parse(localStorage.getItem('recents') || '[]');
+        recents = recents.filter(r => r.name !== name);
+        recents.unshift({ name, content });
         if (recents.length > 5) recents.pop();
-        localStorage.setItem(RECENT_KEY, JSON.stringify(recents));
-        updateRecentMenu();
+        localStorage.setItem('recents', JSON.stringify(recents));
+        renderRecents();
     }
 
-    // Load from Recents
-    function loadRecent(index) {
-        let recents = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');
-        if (recents[index]) {
-            input.value = recents[index].content;
-        }
+    function renderRecents() {
+        const list = document.getElementById('recent-list');
+        const recents = JSON.parse(localStorage.getItem('recents') || '[]');
+        list.innerHTML = recents.map(r => `<button onclick="loadRecent('${r.name}')">${r.name}</button>`).join('');
     }
 
-    // Clear Function
-    function clearPad() {
-        if (confirm("Are you sure you want to wipe the page?")) {
-            input.value = '';
-            viewer.srcdoc = '';
-            viewer.src = 'about:blank';
-        }
+    function loadRecent(name) {
+        const recents = JSON.parse(localStorage.getItem('recents') || '[]');
+        const item = recents.find(r => r.name === name);
+        if (item) editor.value = item.content;
+        loadMenu.classList.remove('show');
     }
 
-    // Initialize Menu (Placeholder for UI update)
-    function updateRecentMenu() {
-        console.log("Recents updated in storage");
-    }
+    window.onload = renderRecents;
 </script>
 
 </body>

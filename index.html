@@ -15,7 +15,7 @@
         #editor { width: 100vw; height: 100vh; background: #1e1e1e; color: #d4d4d4; border: none; padding: 10px; font-family: monospace; font-size: 14px; resize: none; outline: none; }
         
         /* The UI Layer */
-        .controls { position: fixed; top: 10px; left: 10px; display: flex; gap: 5px; z-index: 100; }
+        .controls { position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%); display: flex; gap: 5px; z-index: 100; }
         button { background: #333; color: #fff; border: 1px solid #555; padding: 4px 8px; cursor: pointer; font-size: 12px; }
         button:hover { background: #444; }
 
@@ -26,9 +26,9 @@
         /* Tiny Top-Corner Refresh/Close */
         #close-btn { position: absolute; top: 5px; right: 5px; background: #ff4444; border: none; color: white; padding: 2px 6px; cursor: pointer; z-index: 1001; font-size: 10px; }
         
-        /* Load Menu */
-        #load-menu { position: absolute; top: 35px; left: 0; background: #252526; border: 1px solid #444; display: none; flex-direction: column; min-width: 120px; }
-        #load-menu button { border: none; text-align: left; width: 100%; padding: 8px; }
+        /* Load & Save Menus */
+        #load-menu, #save-menu { position: absolute; bottom: 35px; left: 0; background: #252526; border: 1px solid #444; display: none; flex-direction: column; min-width: 120px; }
+        #load-menu button, #save-menu button { border: none; text-align: left; width: 100%; padding: 8px; }
         .show { display: flex !important; }
     </style>
 </head>
@@ -37,11 +37,16 @@
 <div class="controls">
     <button onclick="toggleLoad()">LOAD</button>
     <button onclick="runAndPreview()">RUN</button>
-    <button onclick="saveFile()">SAVE</button>
+    <button onclick="toggleSave()">SAVE</button>
     
     <div id="load-menu">
         <button onclick="document.getElementById('file-input').click()">Import File</button>
         <div id="recent-list"></div>
+    </div>
+
+    <div id="save-menu">
+        <button onclick="saveFile('project.html')">Quick Save</button>
+        <button onclick="saveAsFile()">Save As...</button>
     </div>
 </div>
 
@@ -114,6 +119,7 @@ function setTranslate(xPos, yPos, el) {
     const previewContainer = document.getElementById('preview-container');
     const previewFrame = document.getElementById('preview-frame');
     const loadMenu = document.getElementById('load-menu');
+    const saveMenu = document.getElementById('save-menu');
 
     // RUN & PREVIEW TOGGLE
     function runAndPreview() {
@@ -132,6 +138,7 @@ function setTranslate(xPos, yPos, el) {
 
     // LOAD SYSTEM
     function toggleLoad() {
+        saveMenu.classList.remove('show');
         loadMenu.classList.toggle('show');
     }
 
@@ -148,12 +155,23 @@ function setTranslate(xPos, yPos, el) {
     }
 
     // SAVE SYSTEM
-    function saveFile() {
+    function toggleSave() {
+        loadMenu.classList.remove('show');
+        saveMenu.classList.toggle('show');
+    }
+
+    function saveFile(filename) {
         const blob = new Blob([editor.value], { type: 'text/html' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = 'project.html';
+        a.download = filename || 'project.html';
         a.click();
+        saveMenu.classList.remove('show');
+    }
+
+    function saveAsFile() {
+        const filename = prompt("Enter filename:", "project.html");
+        if (filename) saveFile(filename);
     }
 
     // RECENT FILES (Local Storage)

@@ -2,209 +2,232 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ghoster</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>CRUNCHY 64</title>
     <style>
-        .controls {
-    position: fixed;
-    cursor: move; /* Shows the 'grab' icon */
-    touch-action: none; /* Crucial for mobile: stops the screen from scrolling while you drag */
-    user-select: none; /* Stops you from accidentally highlighting text while dragging */
-        }
-        body { margin: 0; font-family: sans-serif; background: #1e1e1e; color: white; overflow: hidden; }
-        #editor { width: 100vw; height: 100vh; background: #1e1e1e; color: #d4d4d4; border: none; padding: 10px; font-family: monospace; font-size: 14px; resize: none; outline: none; }
+        :root { --neon: #39ff14; --ghost: #00f3ff; }
+        * { box-sizing: border-box; touch-action: none; -webkit-tap-highlight-color: transparent; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: monospace; }
+        #shield { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 8000; }
+        #top-bar { position: fixed; top: 25px; left: 0; width: 100%; height: 80px; display: flex; align-items: center; padding: 0 10px; z-index: 9999; }
+        #menu-trigger { background: #111; color: var(--ghost); border: 2px solid var(--ghost); padding: 15px; font-weight: bold; min-width: 80px; }
+        #slider-container { flex-grow: 1; padding: 0 15px; }
+        #uni-slider { width: 100%; accent-color: var(--ghost); display: none; }
+        #menu-box { display: none; position: absolute; top: 85px; left: 10px; width: 260px; background: #111; border: 2px solid var(--ghost); padding: 15px; z-index: 9999; color: var(--ghost); }
+        .m-btn { background: #222; border: 1px solid var(--ghost); color: var(--ghost); width: 100%; padding: 12px; font-size: 12px; margin-bottom: 8px; font-weight: bold; }
+        #stage-area { position: absolute; top: 0; bottom: 0; left: 0; right: 0; background: #0a0a0a; z-index: 10; }
+        canvas { display: block; width: 100%; height: 100%; }
+        #ink { position: absolute; top: 50%; left: 50%; border: 3px solid var(--neon); width: 300px; height: 100px; background: rgba(0, 255, 0, 0.1); z-index: 50; display: flex; align-items: center; justify-content: center; transform: translate(-50%, -50%); }
+        #ink input { background: transparent; border: none; color: white; text-align: center; width: 100%; height: 100%; outline: none; font-size: 32px; font-family: monospace; }
+        #sig-modal { display: none; position: fixed; inset: 0; background: #000; z-index: 10000; flex-direction: column; }
+        #sig-canvas { background: #fff; width: 100%; flex-grow: 1; }
+        #sig-controls { background: #111; height: 80px; display: flex; gap: 10px; padding: 10px; border-top: 2px solid var(--ghost); }
         
-        /* The UI Layer */
-        .controls { position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%); display: flex; gap: 5px; z-index: 100; }
-        button { background: #333; color: #fff; border: 1px solid #555; padding: 4px 8px; cursor: pointer; font-size: 12px; }
-        button:hover { background: #444; }
-
-        /* Preview Overlay */
-        #preview-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; display: none; z-index: 1000; }
-        iframe { width: 100%; height: 100%; border: none; }
-        
-        /* Tiny Top-Corner Refresh/Close */
-        #close-btn { position: absolute; top: 5px; right: 5px; background: #ff4444; border: none; color: white; padding: 2px 6px; cursor: pointer; z-index: 1001; font-size: 10px; }
-        
-        /* Load & Save Menus */
-        #load-menu, #save-menu { position: absolute; bottom: 35px; left: 0; background: #252526; border: 1px solid #444; display: none; flex-direction: column; min-width: 120px; }
-        #load-menu button, #save-menu button { border: none; text-align: left; width: 100%; padding: 8px; }
-        .show { display: flex !important; }
+        /* DIRECT SAVE BOX */
+        #save-menu { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 300px; background: #111; border: 3px solid var(--neon); padding: 20px; z-index: 10001; color: #fff; }
+        .save-input { width: 100%; background: #222; border: 1px solid var(--ghost); color: #fff; padding: 10px; margin: 10px 0; font-family: monospace; }
     </style>
 </head>
 <body>
-
-<div class="controls">
-    <button onclick="toggleLoad()">LOAD</button>
-    <button onclick="runAndPreview()">RUN</button>
-    <button onclick="toggleSave()">SAVE</button>
-    
-    <div id="load-menu">
-        <button onclick="document.getElementById('file-input').click()">Import File</button>
-        <div id="recent-list"></div>
-    </div>
-
-    <div id="save-menu">
-        <button onclick="saveFile('project.html')">Quick Save</button>
-        <button onclick="saveAsFile()">Save As...</button>
+<div id="shield"></div>
+<div id="top-bar">
+    <button id="menu-trigger">MENU</button>
+    <div id="slider-container"><input type="range" id="uni-slider" min="0" max="100" value="50"></div>
+    <div id="menu-box">
+        <button class="m-btn" onclick="document.getElementById('f-pick').click()">LOAD IMAGE</button>
+        <button class="m-btn" id="i-stamp" style="color:var(--neon); border-color:var(--neon);">STAMP TEXT</button>
+        <button class="m-btn" id="i-undo">UNDO</button>
+        <button class="m-btn" id="i-open-sig">SIGNATURE MODE</button>
+        <hr style="border:0; border-top:1px solid #444; margin: 10px 0;">
+        <select id="stamp-mode" style="background:#222; color:#fff; width:100%; padding:10px; margin-bottom:10px;"><option value="none">-- STYLE --</option><option value="bold">Boldness</option><option value="color">Color</option><option value="shade">Shade (B <-> W)</option></select>
+        <button class="m-btn" id="open-save-menu" style="background:var(--ghost); color:#000;">SAVE AS...</button>
     </div>
 </div>
 
-<input type="file" id="file-input" style="display:none" onchange="importFile(event)">
-<textarea id="editor" placeholder="Write HTML/JS here..."></textarea>
-
-<div id="preview-container">
-    <button id="close-btn" onclick="closePreview()">X</button>
-    <iframe id="preview-frame"></iframe>
+<div id="save-menu">
+    <div style="font-weight:bold; color:var(--neon); margin-bottom:10px;">SAVE FILE</div>
+    <label>NAME:</label>
+    <input type="text" id="save-name" class="save-input" placeholder="filename">
+    <label>EXTENSION:</label>
+    <select id="save-ext" class="save-input">
+        <option value="png">.PNG (Image)</option>
+        <option value="jpg">.JPG (Compressed)</option>
+        <option value="pdf">.PDF (Document)</option>
+        <option value="json">.JSON (Data)</option>
+        <option value="txt">.TXT (Text)</option>
+    </select>
+    <div style="display:flex; gap:10px; margin-top:10px;">
+        <button class="m-btn" id="exec-download" style="flex:2; background:var(--neon); color:#000;">DOWNLOAD</button>
+        <button class="m-btn" style="flex:1; border-color:red; color:red;" onclick="closeSave()">X</button>
+    </div>
 </div>
+
+<div id="stage-area"><canvas id="canv"></canvas><div id="ink"><input type="text" id="entry" placeholder="TYPE" spellcheck="false"></div></div>
+<div id="sig-modal">
+    <canvas id="sig-canvas"></canvas>
+    <div id="sig-controls">
+        <button class="m-btn" id="sig-clear" style="flex:1">CLEAR</button>
+        <button class="m-btn" id="sig-done" style="flex:1; border-color:var(--neon); color:var(--neon);">STAMP</button>
+        <button class="m-btn" id="sig-cancel" style="border-color:red; color:red; flex:1">EXIT</button>
+    </div>
+</div>
+<input type="file" id="f-pick" style="display:none" accept="image/*">
 
 <script>
-    const dragContainer = document.querySelector(".controls");
-let active = false;
-let currentX;
-let currentY;
-let initialX;
-let initialY;
-let xOffset = 0;
-let yOffset = 0;
+const stage = document.getElementById('canv'), ctx = stage.getContext('2d');
+const ink = document.getElementById('ink'), entry = document.getElementById('entry');
+const menu = document.getElementById('menu-box'), trigger = document.getElementById('menu-trigger'), shield = document.getElementById('shield');
+const uniSlider = document.getElementById('uni-slider'), stampMode = document.getElementById('stamp-mode');
+const sigModal = document.getElementById('sig-modal'), sigCanvas = document.getElementById('sig-canvas'), sctx = sigCanvas.getContext('2d');
+let img = new Image(), history = [], zoom = 1, px = 0, py = 0, lastX, lastY, lastDist, inkScale = 1, isBoxMoving = false, isMenuOpen = false, textBold = 400, textColor = 0, textShade = 50;
 
-// Listen for touch (mobile) and mouse (desktop)
-dragContainer.addEventListener("touchstart", dragStart, false);
-dragContainer.addEventListener("touchend", dragEnd, false);
-dragContainer.addEventListener("touchmove", drag, false);
-
-dragContainer.addEventListener("mousedown", dragStart, false);
-dragContainer.addEventListener("mouseup", dragEnd, false);
-dragContainer.addEventListener("mousemove", drag, false);
-
-function dragStart(e) {
-    if (e.type === "touchstart") {
-        initialX = e.touches[0].clientX - xOffset;
-        initialY = e.touches[0].clientY - yOffset;
-    } else {
-        initialX = e.clientX - xOffset;
-        initialY = e.clientY - yOffset;
-    }
-    if (e.target === dragContainer || dragContainer.contains(e.target)) {
-        active = true;
-    }
+function draw() { 
+    stage.width = window.innerWidth; stage.height = window.innerHeight; 
+    ctx.fillStyle = "#0a0a0a"; ctx.fillRect(0,0,stage.width,stage.height); 
+    if (!img.src) return; 
+    ctx.save(); ctx.translate(stage.width/2 + px, stage.height/2 + py); ctx.scale(zoom, zoom); 
+    ctx.drawImage(img, -img.width/2, -img.height/2); ctx.restore(); 
 }
 
-function dragEnd() {
-    initialX = currentX;
-    initialY = currentY;
-    active = false;
+function initSigCanvas() {
+    sigCanvas.width = window.innerWidth; sigCanvas.height = window.innerHeight - 80;
+    sctx.fillStyle = "white"; sctx.fillRect(0,0,sigCanvas.width,sigCanvas.height); 
+    sctx.lineWidth = 6; sctx.strokeStyle = "black"; sctx.lineCap = "round"; sctx.lineJoin = "round"; 
 }
 
-function drag(e) {
-    if (active) {
-        e.preventDefault();
-        if (e.type === "touchmove") {
-            currentX = e.touches[0].clientX - initialX;
-            currentY = e.touches[0].clientY - initialY;
-        } else {
-            currentX = e.clientX - initialX;
-            currentY = e.clientY - initialY;
+window.addEventListener('resize', () => { draw(); if (sigModal.style.display === 'flex') initSigCanvas(); });
+
+trigger.onclick = (e) => { isMenuOpen = !isMenuOpen; menu.style.display = isMenuOpen ? 'block' : 'none'; shield.style.display = isMenuOpen ? 'block' : 'none'; };
+
+document.getElementById('open-save-menu').onclick = () => { 
+    menu.style.display = 'none'; 
+    document.getElementById('save-menu').style.display = 'block'; 
+    shield.style.display = 'block'; 
+};
+
+function closeSave() { document.getElementById('save-menu').style.display = 'none'; shield.style.display = 'none'; isMenuOpen = false; }
+
+document.getElementById('exec-download').onclick = () => {
+    const name = document.getElementById('save-name').value || "crunchy_export";
+    const ext = document.getElementById('save-ext').value;
+    const finalName = `${name}.${ext}`;
+    
+    if (ext === 'png' || ext === 'jpg') {
+        const link = document.createElement('a');
+        link.download = finalName;
+        link.href = stage.toDataURL(`image/${ext === 'png' ? 'png' : 'jpeg'}`);
+        link.click();
+    } else if (ext === 'pdf') {
+        const w = window.open('about:blank');
+        w.document.write(`<img src="${stage.toDataURL('image/png')}" style="width:100%;"><script>setTimeout(()=>window.print(),500)<\/script>`);
+    } else if (ext === 'json') {
+        const data = JSON.stringify({ zoom, px, py, text: entry.value, layers: history.length });
+        const blob = new Blob([data], {type: 'application/json'});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = finalName; a.click();
+    } else if (ext === 'txt') {
+        const blob = new Blob([entry.value], {type: 'text/plain'});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = finalName; a.click();
+    }
+    closeSave();
+};
+
+window.addEventListener('touchstart', (e) => {
+    if (e.target.closest('#top-bar') || e.target.closest('#save-menu') || sigModal.style.display === 'flex') return;
+    if (isMenuOpen) { e.preventDefault(); return; }
+    isBoxMoving = (e.target === ink || e.target === entry);
+    lastX = e.touches[0].clientX; lastY = e.touches[0].clientY;
+    if (e.touches.length === 2) lastDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+}, {passive: false});
+
+window.addEventListener('touchmove', (e) => {
+    if (e.target.closest('#top-bar') || e.target.closest('#save-menu') || sigModal.style.display === 'flex' || document.activeElement === entry) return;
+    if (isMenuOpen) { e.preventDefault(); return; }
+    e.preventDefault();
+    if (isBoxMoving) {
+        if (e.touches.length === 1) { ink.style.left = e.touches[0].clientX + 'px'; ink.style.top = e.touches[0].clientY + 'px'; }
+        else if (e.touches.length === 2) { 
+            const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); 
+            inkScale *= (d / lastDist); lastDist = d; 
+            ink.style.transform = `translate(-50%, -50%) scale(${inkScale})`; 
         }
-        xOffset = currentX;
-        yOffset = currentY;
-        setTranslate(currentX, currentY, dragContainer);
+    } else {
+        if (e.touches.length === 1) { px += (e.touches[0].clientX - lastX); py += (e.touches[0].clientY - lastY); lastX = e.touches[0].clientX; lastY = e.touches[0].clientY; }
+        else if (e.touches.length === 2) { 
+            const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); 
+            zoom *= (d / lastDist); lastDist = d; 
+        }
+        draw();
     }
+}, {passive: false});
+
+stampMode.onchange = () => { 
+    uniSlider.style.display = stampMode.value === 'none' ? 'none' : 'block'; 
+    if (stampMode.value === 'bold') { uniSlider.min = 100; uniSlider.max = 900; uniSlider.value = textBold; } 
+    else { uniSlider.min = 0; uniSlider.max = 100; uniSlider.value = (stampMode.value === 'color' ? textColor : textShade); } 
+};
+uniSlider.oninput = () => { 
+    const v = uniSlider.value; 
+    if (stampMode.value === 'bold') { textBold = v; entry.style.fontWeight = v; } 
+    if (stampMode.value === 'color') { textColor = v; entry.style.color = `hsla(${v * 3.6}, 100%, ${textShade}%, 1)`; } 
+    if (stampMode.value === 'shade') { textShade = v; entry.style.color = `hsla(${textColor * 3.6}, 100%, ${v}%, 1)`; } 
+};
+
+document.getElementById('f-pick').onchange = (e) => { 
+    const r = new FileReader(); 
+    r.onload = (ev) => { 
+        img.onload = () => { zoom = (window.innerWidth / img.width); px = 0; py = 0; saveHistory(); draw(); }; 
+        img.src = ev.target.result; 
+    }; 
+    r.readAsDataURL(e.target.files[0]); if (isMenuOpen) trigger.click(); 
+};
+
+function saveHistory() { 
+    const t = document.createElement('canvas'); t.width = img.width; t.height = img.height; 
+    t.getContext('2d').drawImage(img, 0, 0); history.push(t.toDataURL()); 
+    if (history.length > 20) history.shift(); 
 }
 
-function setTranslate(xPos, yPos, el) {
-    el.style.transform = "translate3d(" + xPos + "px, " + yPos + "px, 0)";
+function stampWork(isSig = false) {
+    const t = document.createElement('canvas'); t.width = img.width; t.height = img.height; 
+    const tc = t.getContext('2d'); tc.drawImage(img, 0, 0);
+    const iR = ink.getBoundingClientRect();
+    const tx = (iR.left + iR.width/2 - window.innerWidth/2 - px) / zoom + img.width/2;
+    const ty = (iR.top + iR.height/2 - window.innerHeight/2 - py) / zoom + img.height/2;
+    tc.save(); tc.translate(tx, ty);
+    if (isSig) {
+        const sw = sigCanvas.width, sh = sigCanvas.height;
+        const temp = document.createElement('canvas'); temp.width = sw; temp.height = sh; 
+        const ttc = temp.getContext('2d'); ttc.drawImage(sigCanvas, 0, 0);
+        const data = ttc.getImageData(0,0,sw,sh);
+        for(let i=0; i<data.data.length; i+=4) if(data.data[i]>200 && data.data[i+1]>200 && data.data[i+2]>200) data.data[i+3]=0;
+        ttc.putImageData(data, 0, 0);
+        tc.drawImage(temp, -(iR.width/2)/zoom, -(iR.height/2)/zoom, iR.width/zoom, iR.height/zoom);
+    } else {
+        tc.fillStyle = entry.style.color || "white";
+        tc.font = `${textBold} ${(32 * inkScale / zoom)}px monospace`;
+        tc.textAlign = "center"; tc.textBaseline = "middle";
+        tc.fillText(entry.value, 0, 0);
+    }
+    tc.restore(); img.src = t.toDataURL(); img.onload = () => { saveHistory(); draw(); };
 }
-    const editor = document.getElementById('editor');
-    const previewContainer = document.getElementById('preview-container');
-    const previewFrame = document.getElementById('preview-frame');
-    const loadMenu = document.getElementById('load-menu');
-    const saveMenu = document.getElementById('save-menu');
 
-    // RUN & PREVIEW TOGGLE
-    function runAndPreview() {
-        const code = editor.value;
-        previewContainer.style.display = 'block';
-        const doc = previewFrame.contentDocument || previewFrame.contentWindow.document;
-        doc.open();
-        doc.write(code);
-        doc.close();
-    }
+document.getElementById('i-stamp').onclick = () => stampWork(false);
+document.getElementById('i-undo').onclick = () => { if (history.length > 1) { history.pop(); img.src = history[history.length - 1]; img.onload = () => draw(); } };
+document.getElementById('i-open-sig').onclick = () => { sigModal.style.display = 'flex'; initSigCanvas(); };
 
-    function closePreview() {
-        previewContainer.style.display = 'none';
-        previewFrame.src = "about:blank";
-    }
-
-    // LOAD SYSTEM
-    function toggleLoad() {
-        saveMenu.classList.remove('show');
-        loadMenu.classList.toggle('show');
-    }
-
-    function importFile(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            editor.value = e.target.result;
-            addToRecents(file.name, e.target.result);
-        };
-        reader.readAsText(file);
-        loadMenu.classList.remove('show');
-    }
-
-    // SAVE SYSTEM
-    function toggleSave() {
-        loadMenu.classList.remove('show');
-        saveMenu.classList.toggle('show');
-    }
-
-    function saveFile(filename) {
-        const blob = new Blob([editor.value], { type: 'text/html' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = filename || 'project.html';
-        a.click();
-        saveMenu.classList.remove('show');
-    }
-
-    function saveAsFile() {
-        const filename = prompt("Enter filename:", "project.html");
-        if (filename) saveFile(filename);
-    }
-
-    // RECENT FILES (Local Storage)
-    function addToRecents(name, content) {
-        let recents = JSON.parse(localStorage.getItem('recents') || '[]');
-        recents = recents.filter(r => r.name !== name);
-        recents.unshift({ name, content });
-        if (recents.length > 5) recents.pop();
-        localStorage.setItem('recents', JSON.stringify(recents));
-        renderRecents();
-    }
-
-    function renderRecents() {
-        const list = document.getElementById('recent-list');
-        const recents = JSON.parse(localStorage.getItem('recents') || '[]');
-        list.innerHTML = recents.map(r => `<button onclick="loadRecent('${r.name}')">${r.name}</button>`).join('');
-    }
-
-    function loadRecent(name) {
-        const recents = JSON.parse(localStorage.getItem('recents') || '[]');
-        const item = recents.find(r => r.name === name);
-        if (item) editor.value = item.content;
-        loadMenu.classList.remove('show');
-    }
-
-    window.onload = renderRecents;
-    // ... all your existing code ...
-
-// Just add this at the very bottom of the same script:
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js');
-}
+let drawing = false;
+sigCanvas.addEventListener('touchstart', (e) => { 
+    drawing = true; const t = e.touches[0]; const r = sigCanvas.getBoundingClientRect();
+    sctx.beginPath(); sctx.moveTo(t.clientX - r.left, t.clientY - r.top); e.preventDefault(); 
+}, {passive: false});
+sigCanvas.addEventListener('touchmove', (e) => { 
+    if (!drawing) return; const t = e.touches[0]; const r = sigCanvas.getBoundingClientRect();
+    sctx.lineTo(t.clientX - r.left, t.clientY - r.top); sctx.stroke(); e.preventDefault(); 
+}, {passive: false});
+sigCanvas.addEventListener('touchend', () => { drawing = false; });
+document.getElementById('sig-clear').onclick = () => { sctx.fillStyle = "white"; sctx.fillRect(0,0,sigCanvas.width,sigCanvas.height); };
+document.getElementById('sig-cancel').onclick = () => sigModal.style.display = 'none';
+document.getElementById('sig-done').onclick = () => { stampWork(true); sigModal.style.display = 'none'; };
 </script>
-
 </body>
 </html>
